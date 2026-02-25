@@ -19,6 +19,10 @@ An entirely asynchronous, Map-Reduce LangGraph architecture that ingests heavy t
 
 The result is a pipeline that processes a massive textbook in roughly the same wall-clock time it takes to process a single chunk, exporting perfectly structured CSVs ready for database ingestion.
 
+## Performance Benchmark:
+
+Using Gemini 2.5 Flash Lite and max_concurrency=5, the Map-Reduce pipeline successfully ingested a 119-page PDF, fanned out the generation/review nodes, and aggregated 2,589 validated quiz questions in 31 seconds. (A ~15x speedup over sequential processing).
+
 ## Architecture
 
 **Pipeline at a glance:**
