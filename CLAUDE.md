@@ -30,7 +30,7 @@ The CLI entry point is registered as `quizzer` (`src.main:cli`) in `pyproject.to
 Configuration is centralized in `src/core/settings.py` (Pydantic `BaseSettings`, reads `.env`). Notable settings:
 
 - `MODEL_PROVIDER` — `google` | `groq` | `openai` (default `openai`); selects which client `src/agent/llm.py::get_llm` returns.
-- Per-provider `*_API_KEY` and `*_MODEL` pairs. Even though only one provider is used at runtime, `Settings` requires all three API keys to be present (they can be empty strings in `.env`).
+- Per-provider `*_API_KEY` and `*_MODEL` pairs. `Settings` declares all three `*_API_KEY` fields, so they must exist in `.env`, but unused providers can be empty strings — `get_llm()` only instantiates the active provider's client.
 - `GEN_CONCURRENCY` (default 5) — passed as `max_concurrency` into the LangGraph `RunnableConfig` and bounds the Map-Reduce fan-out.
 - `LANGSMITH_*` — tracing is on by default; set `LANGSMITH_API_KEY` to record traces.
 
@@ -55,13 +55,13 @@ The main graph is compiled with an `InMemorySaver` checkpointer; `graph_ainvoke`
 
 ### Quiz normalization (`quiz_generator`)
 
-LLMs return structured output via `LLM.with_structured_output(MultipleQuiz)`, but the generator defensively handles both Pydantic-model and raw-dict responses, and accepts options either as `option_a/b/c/d` fields or as a nested `options: {"A": ..., "B": ...}` dict. Answers outside `{A, B, C, D}` are coerced to `"A"`. Keep this normalization in mind before tightening schemas — providers diverge in how they emit structured output.
+LLMs return structured output via `get_llm().with_structured_output(MultipleQuiz)`, but the generator defensively handles both Pydantic-model and raw-dict responses, and accepts options either as `option_a/b/c/d` fields or as a nested `options: {"A": ..., "B": ...}` dict. Answers outside `{A, B, C, D}` are coerced to `"A"`. Keep this normalization in mind before tightening schemas — providers diverge in how they emit structured output.
 
 ### Pipeline plumbing
 
 - `src/agent/utils/ingest_pdf.py` — PDF → `list[PDFPageData]` (pymupdf, page-level).
 - `src/agent/utils/chunk_pdf_content.py` — `RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)`. Each chunk gets a random `chunk_id` (`{n}_{hex}`) and carries its source `page_number` forward into every quiz item.
-- `src/agent/llm.py` — module-level `LLM = MODEL = get_llm()`; pick the provider via `MODEL_PROVIDER`. All three provider clients are instantiated at import time.
+- `src/agent/llm.py` — `get_llm(provider=None)` builds a fresh client on every call from the latest `settings`. There is no module-level LLM singleton, and only the active provider is instantiated, so a runtime mutation of `settings.MODEL_PROVIDER` (or `*_MODEL`) takes effect on the next call.
 - `src/utils/export.py::export_quizzes_to_csv` — writes the LMS-ready CSV (Question / Option A–D / Correct Answer / Explanation). Defaults to `outputs/quiz_export_<timestamp>.csv` when no custom path is given.
 
 ## Repository conventions

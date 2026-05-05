@@ -9,7 +9,7 @@ from langgraph.graph.state import CompiledStateGraph
 from langgraph.types import RetryPolicy, Send, StateSnapshot
 
 from ..core import logger, settings
-from .llm import MODEL as LLM
+from .llm import get_llm
 from .prompts import GENERATE_QUIZ_PROMPT, REVIEW_QUIZ_PROMPT
 from .schemas import MultipleQuiz, ReviewedQuiz
 from .state import (
@@ -159,7 +159,7 @@ async def quiz_generator(state: SubGraphState) -> dict[str, list[FinalQuizItem]]
         )
         return {"quiz": []}
 
-    structured_llm = LLM.with_structured_output(MultipleQuiz)
+    structured_llm = get_llm().with_structured_output(MultipleQuiz)
 
     generator_prompt = GENERATE_QUIZ_PROMPT.format(chunk=chunk_text)
     generator_response = await structured_llm.ainvoke(
@@ -221,7 +221,7 @@ async def quiz_reviewer(state: SubGraphState) -> dict[str, int | bool]:
             "is_quiz_relevant": False,
             "iter_count": state.get("iter_count", 0) + 1,
         }
-    structured_llm = LLM.with_structured_output(ReviewedQuiz)
+    structured_llm = get_llm().with_structured_output(ReviewedQuiz)
 
     review_prompt = REVIEW_QUIZ_PROMPT.format(
         chunk=chunk_text,
