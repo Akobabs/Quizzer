@@ -45,7 +45,7 @@ There are two compiled graphs:
 1. **Main graph** (`build_graph`): `START → page_ingestor → chunking → subgraph_generator → aggregator → END`. The edge from `chunking` is a *conditional* edge that uses `route_chunks_to_subgraph` to emit one `Send("subgraph_generator", {"chunk": chunk})` per chunk — this is the fan-out.
 2. **Generator subgraph** (`build_generator_subgraph`): `START → quiz_generator → quiz_reviewer → (regenerate ↔ completed)`. Loops up to `MAX_SUBGRAPH_ITER = 3` times if the reviewer marks the quiz not relevant. Each subgraph node has a `RetryPolicy(jitter=True)` for transient LLM errors.
 
-The main graph is compiled with an `InMemorySaver` checkpointer; `graph_ainvoke` streams updates with `stream_mode="updates"` and then calls `aget_state` to return the final `StateSnapshot`.
+The main graph is compiled with an `InMemorySaver` checkpointer; `graph_ainvoke` streams updates with `stream_mode="updates"` and then calls `aget_state` to return the final `StateSnapshot`. It accepts an optional `on_update: Callable[[dict], Awaitable[None]] | None` — when provided, the callback is awaited once per stream update with the raw `{node_name: node_update_dict}` mapping. The CLI ignores it; the UI runner uses it to drive live progress (see `src/ui/runner.py`).
 
 ### State shape (`src/agent/state.py`) — the critical detail
 

@@ -1,5 +1,5 @@
 import os
-from typing import Final, Literal, cast
+from typing import Awaitable, Callable, Final, Literal, cast
 
 from langchain.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
@@ -266,6 +266,7 @@ async def should_regenerate_quiz(
 async def graph_ainvoke(
     pdf_url_or_base64: str = "temp/sample.pdf",
     thread_id: str = f"qthread_{os.urandom(8).hex()}",
+    on_update: Callable[[dict], Awaitable[None]] | None = None,
 ) -> GlobalQuizState | StateSnapshot:
     initial_state: GlobalQuizState = GlobalQuizState(
         pdf_url_or_base64=pdf_url_or_base64,
@@ -293,6 +294,8 @@ async def graph_ainvoke(
             for node_name, node_update in update.items()
         }
         logger.info(f"Graph Update -  {summary}\n\n")
+        if on_update is not None:
+            await on_update(update)
 
     final_state = await graph.aget_state(config=config)
 
