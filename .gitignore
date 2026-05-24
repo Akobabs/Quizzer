@@ -12,3 +12,7 @@ logs/
 .env
 .env.test
 temp/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/

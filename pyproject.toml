@@ -16,10 +16,17 @@ dependencies = [
     "pymupdf>=1.27.1",
     "pytest>=9.0.2",
     "python-dotenv>=1.2.1",
+    "fastapi>=0.136.3",
+    "uvicorn[standard]>=0.32.0",
+    "python-multipart>=0.0.12",
+    "slowapi>=0.1.9",
+    "aiofiles>=24.1.0",
+    "pydantic>=2.13.4",
 ]
 
 [project.scripts]
 quizzer = "src.main:cli"
+quizzer-api = "src.api.app:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
