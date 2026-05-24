@@ -1,4 +1,5 @@
 import os
+from collections.abc import Awaitable, Callable
 from typing import Final, Literal, cast
 
 from langchain.messages import HumanMessage
@@ -24,6 +25,13 @@ from .utils import chunk_pdf_content, ingest_pdf
 # ============================================================================
 # MAIN GRAPH
 # ============================================================================
+
+_NODE_PROGRESS: dict[str, str] = {
+    "page_ingestor": "Extracting text from PDF pages...",
+    "chunking": "Breaking content into processable chunks...",
+    "subgraph_generator": "Generating quiz questions from chunks...",
+    "aggregator": "Aggregating and finalizing quiz results...",
+}
 
 
 async def build_graph() -> CompiledStateGraph:
@@ -51,7 +59,6 @@ async def build_graph() -> CompiledStateGraph:
 
     # Compile graph
     graph = builder.compile(checkpointer=memory)
-    # graph.get_graph().draw_mermaid_png(output_file_path="graph.png")
 
     return graph
 
@@ -64,7 +71,6 @@ async def page_ingestor(state: GlobalQuizState) -> dict[str, list[PDFPageData]]:
     logger.info("--------🚦 NODE - PAGE INGESTOR--------")
     pdf_content: list[PDFPageData] = ingest_pdf(state.get("pdf_url_or_base64", ""))
     logger.debug(f"Ingested PDF content length: {len(pdf_content)} pages")
-    # logger.debug(f"Sample of PDF content: {pdf_content[:2]}")
 
     return {
         "pdf_pages_data": pdf_content,
@@ -153,7 +159,6 @@ async def quiz_generator(state: SubGraphState) -> dict[str, list[FinalQuizItem]]
     logger.debug(f"Generating quiz for chunk of length: {len(chunk_text)}...")
 
     if not chunk_text or not chunk_text.strip():
-        # nothing to ask the model about – avoid empty‑content request
         logger.warning(
             "quiz_generator called with empty chunk_text; " "skipping LLM invocation"
         )
@@ -265,8 +270,13 @@ async def should_regenerate_quiz(
 
 async def graph_ainvoke(
     pdf_url_or_base64: str = "temp/sample.pdf",
-    thread_id: str = f"qthread_{os.urandom(8).hex()}",
+    thread_id: str | None = None,
+    progress_callback: Callable[[str], Awaitable[None]] | None = None,
 ) -> GlobalQuizState | StateSnapshot:
+    # Generate a unique thread_id each call — NOT a module-level default
+    if thread_id is None:
+        thread_id = f"qthread_{os.urandom(8).hex()}"
+
     initial_state: GlobalQuizState = GlobalQuizState(
         pdf_url_or_base64=pdf_url_or_base64,
         pdf_pages_data=[],
@@ -293,6 +303,11 @@ async def graph_ainvoke(
             for node_name, node_update in update.items()
         }
         logger.info(f"Graph Update -  {summary}\n\n")
+
+        if progress_callback:
+            node_name = next(iter(summary), "")
+            message = _NODE_PROGRESS.get(node_name, f"Processing: {node_name}")
+            await progress_callback(message)
 
     final_state = await graph.aget_state(config=config)
 

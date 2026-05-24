@@ -5,39 +5,30 @@ from pydantic import SecretStr
 
 from ..core import logger, settings
 
-GoogleLLM = ChatGoogleGenerativeAI(
-    model=settings.GEMINI_MODEL,
-    api_key=SecretStr(settings.GEMINI_API_KEY),
-    temperature=1.0,
-)
-
-GroqLLM = ChatGroq(
-    model=settings.GROQ_MODEL,
-    api_key=SecretStr(settings.GROQ_API_KEY),
-    temperature=1.0,
-)
-
-OpenAILLM = ChatOpenAI(
-    model=settings.OPENAI_MODEL,
-)
-
 
 def get_llm(provider: str = settings.MODEL_PROVIDER):
+    """Return an LLM instance for the given provider. Only instantiates the requested provider."""
     if provider == "google":
-        return GoogleLLM
+        return ChatGoogleGenerativeAI(
+            model=settings.GEMINI_MODEL,
+            api_key=SecretStr(settings.GEMINI_API_KEY),
+            temperature=1.0,
+        )
     elif provider == "groq":
-        return GroqLLM
+        return ChatGroq(
+            model=settings.GROQ_MODEL,
+            api_key=SecretStr(settings.GROQ_API_KEY),
+            temperature=1.0,
+        )
     elif provider == "openai":
-        return OpenAILLM
+        return ChatOpenAI(
+            model=settings.OPENAI_MODEL,
+        )
     else:
         raise ValueError(f"Unsupported model provider: {provider}")
 
 
-LLM = MODEL = get_llm()
-
-
 def main() -> None:
-
     prompt = "Hello there! Can you tell me a joke?"
     try:
         llm = get_llm()
@@ -47,6 +38,10 @@ def main() -> None:
     except Exception as error:
         logger.exception(f"LLM invocation failed: {error}")
         raise
+
+
+# Lazy singleton for the configured provider only — unused providers are never instantiated
+LLM = MODEL = get_llm()
 
 
 if __name__ == "__main__":
