@@ -23,6 +23,7 @@ def get_llm(provider: str = settings.MODEL_PROVIDER):
     elif provider == "openai":
         return ChatOpenAI(
             model=settings.OPENAI_MODEL,
+            api_key=SecretStr(settings.OPENAI_API_KEY),
         )
     else:
         raise ValueError(f"Unsupported model provider: {provider}")
